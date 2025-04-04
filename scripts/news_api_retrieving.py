@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 from typing import Dict, List
 import pandas as pd
 import datetime
@@ -51,7 +50,7 @@ def fetch_latest_crypto_articles_data(folder_path: str, config: Dict[str, str],
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
     full_articles_df.to_parquet(f'{folder_path}/full_articles_{current_date}.parquet', index=False)
-    final_df.to_csv(f'{folder_path}/artocles_df_{current_date}.csv', index=False)
+    final_df.to_csv(f'{folder_path}/articles_df_{current_date}.csv', index=False)
     logging.info('retrieving ended successfully')
 
 
