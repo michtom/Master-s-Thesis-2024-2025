@@ -64,25 +64,37 @@ async def fetch_market_chart_for_one_symbol(symbol: str) -> dict:
         "vs_currency": 'usd',
         "days": "1",
     }
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f'{BASE_ENDPOINT}/{symbol}/market_chart', params=params) as resp:
+    for attempt in range(2):
+        async with aiohttp.ClientSession() as session:
             try:
-                resp.raise_for_status()
-                return await resp.json()
+                async with session.get(f'{BASE_ENDPOINT}/{symbol}/market_chart', params=params) as resp:
+                    if resp.status == 429:
+                        logging.info('rate limits reached, sleeping for 1 minute')
+                        await asyncio.sleep(60)
+                        continue
+                    resp.raise_for_status()
+                    return await resp.json()
             except Exception as e:
                 logging.error(f'error while fetching data for {symbol}: {e}')
-                return {}
+        break
+    return {}
 
 
 async def fetch_data_for_one_symbol(symbol: str) -> dict:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f'{BASE_ENDPOINT}/{symbol}') as response:
+    for attempt in range(2):
+        async with aiohttp.ClientSession() as session:
             try:
-                response.raise_for_status()
-                return await response.json()
+                async with session.get(f'{BASE_ENDPOINT}/{symbol}') as response:
+                    if response.status == 429:
+                        logging.info('rate limits reached, sleeping for 1 minute')
+                        await asyncio.sleep(60)
+                        continue
+                    response.raise_for_status()
+                    return await response.json()
             except Exception as e:
                 logging.error(f'error while fetching data for {symbol}: {e}')
-                return {}
+        break
+    return {}
 
 
 def parse_market_chart(data: dict) -> pd.DataFrame:
