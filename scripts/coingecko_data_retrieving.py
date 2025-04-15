@@ -34,7 +34,6 @@ async def fetch_coingecko_current_data(symbols: List[str], path: str) -> dict:
         df['symbol'] = COINGECKO_SYMBOL_MAPPER.get(symbol, symbol)
         dfs_market_chart.append(df)
     market_chart_df = pd.concat(dfs_market_chart)
-    print(market_chart_df.to_string())
     market_chart_df.to_csv(f'{path}/market_chart_data_{timestamp.strftime('%Y-%m-%d')}.csv', index=False)
     logging.info('successfully fetched market chart data')
     return result_dict
