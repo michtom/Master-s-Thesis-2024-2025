@@ -36,7 +36,7 @@ def fetch_latest_crypto_articles_data(folder_path: str, config: Dict[str, str],
             for article in articles:
                 counter += 1
                 article['article_id'] = counter
-                full_articles[counter] = article
+                full_articles[counter] = article['content']
             articles_reduced = [{k: v for k, v in article.items() if k in COLUMNS} for article in articles]
             df = pd.DataFrame(articles_reduced)
             df['query'] = query

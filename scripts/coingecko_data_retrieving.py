@@ -23,7 +23,7 @@ async def fetch_coingecko_current_data(symbols: List[str], path: str) -> dict:
         df['timestamp'] = timestamp
         dfs_general.append(df)
     df_general = pd.concat(dfs_general)
-    df_general.to_csv(f'{path}/general_market_data_{timestamp.strftime('%Y-%m-%d')}.csv', index=False)
+    df_general.to_csv(f'{path}/general_market_data_{timestamp.strftime('%Y-%m-%d-%H')}.csv', index=False)
     logging.info('successfully fetched general market data')
     tasks_market_chart = [fetch_market_chart_for_one_symbol(symbol) for symbol in symbols]
     market_chart_data = await asyncio.gather(*tasks_market_chart)
@@ -34,7 +34,7 @@ async def fetch_coingecko_current_data(symbols: List[str], path: str) -> dict:
         df['symbol'] = COINGECKO_SYMBOL_MAPPER.get(symbol, symbol)
         dfs_market_chart.append(df)
     market_chart_df = pd.concat(dfs_market_chart)
-    market_chart_df.to_csv(f'{path}/market_chart_data_{timestamp.strftime('%Y-%m-%d')}.csv', index=False)
+    market_chart_df.to_csv(f'{path}/market_chart_data_{timestamp.strftime('%Y-%m-%d-%H')}.csv', index=False)
     logging.info('successfully fetched market chart data')
     return result_dict
 

@@ -14,7 +14,7 @@ def fetch_latest_reddit_comments(path: str, client: praw.Reddit, subreddits: Lis
                                  time_threshold_hours: int = 24) -> None:
     logging.info('fetching comments from reddit')
     current_time = datetime.datetime.now(datetime.timezone.utc).timestamp()
-    current_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d')
+    current_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d-%H')
     comments = []
     for subreddit in subreddits:
         try:
