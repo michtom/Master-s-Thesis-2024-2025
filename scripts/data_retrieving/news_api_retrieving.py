@@ -56,7 +56,7 @@ def fetch_latest_crypto_articles_data(folder_path: str, config: Dict[str, str],
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
-    folder_path = '../data/finlighten_news'
+    folder_path = '../../data/finlighten_news'
     config = {'api_key': credentials.api_key}
     queries = ['crypto', 'bitcoin', 'ethereum', 'solana', 'blockchain', 'tether', 'usd']
     page_size = 100

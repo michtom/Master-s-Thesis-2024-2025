@@ -38,7 +38,7 @@ def fetch_latest_reddit_comments(path: str, client: praw.Reddit, subreddits: Lis
 
 
 def main() -> None:
-    path = '../data/reddit_comments/'
+    path = '../../data/reddit_comments/'
     logging.basicConfig(level=logging.INFO)
     client = praw.Reddit(client_id=credentials.reddit_client_id, client_secret=credentials.reddit_secret,
                          user_agent=credentials.reddit_agent)
