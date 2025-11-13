@@ -121,6 +121,7 @@ def train_price_prediction_model(
     random.seed(120)
     tf.random.set_seed(120)
     scores = {"mse": [], "mae": [], "da": [], "sr": [],
+              "r_squared": [], 'corr': [],
               "y_pred": [], "y_test": []}
     histories = []
 
@@ -166,6 +167,8 @@ def train_price_prediction_model(
             scores["mae"].append(mean_absolute_error(y_test_raw_flat, y_pred_raw))
             scores["da"].append(directional_accuracy(y_test_raw_flat, y_pred_raw))
             scores["sr"].append(sharpe_ratio(y_test_raw_flat, y_pred_raw))
+            scores["r_squared"].append(r2_score(y_test_raw_flat, y_pred_raw))
+            scores['corr'].append(calculate_correlation(y_test_raw_flat, y_pred_raw))
 
             print(f"fold {i} | mse: {scores['mse'][-1]:.6g} | mae: {scores['mae'][-1]:.6g} "
                   f"da: {scores['da'][-1]:.3f} | sr: {scores['sr'][-1]:.3f}")
@@ -207,6 +210,8 @@ def train_price_prediction_model(
         scores["mae"].append(mean_absolute_error(y_test_raw_flat, y_pred_raw))
         scores["da"].append(directional_accuracy(y_test_raw_flat, y_pred_raw))
         scores["sr"].append(sharpe_ratio(y_test_raw_flat, y_pred_raw))
+        scores["r_squared"].append(r2_score(y_test_raw_flat, y_pred_raw))
+        scores["corr"].append(calculate_correlation(y_test_raw_flat, y_pred_raw))
 
         print(f"fold {i} | mse: {scores['mse'][-1]:.6g} | mae: {scores['mae'][-1]:.6g} "
               f"da: {scores['da'][-1]:.3f} | sr: {scores['sr'][-1]:.3f}")
