@@ -228,4 +228,6 @@ def train_price_prediction_model(
     print(f"mean MAE: {np.mean(scores['mae'])}")
     print(f"mean DA: {np.mean(scores['da'])}")
     print(f"mean SR: {np.mean(scores['sr'])}")
+    print(f"mean R^2: {np.mean(scores['r_squared'])}")
+    print(f"mean Pearson correlation: {np.mean(scores['corr'])}")
     return scores, histories
