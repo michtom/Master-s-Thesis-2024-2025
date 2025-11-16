@@ -216,12 +216,12 @@ def train_price_prediction_model(
         print(f"fold {i} | mse: {scores['mse'][-1]:.6g} | mae: {scores['mae'][-1]:.6g} "
               f"da: {scores['da'][-1]:.3f} | sr: {scores['sr'][-1]:.3f}")
 
-    largest_da = np.argmax(scores["da"])
-    y_pred = scores["y_pred"][largest_da]
-    y_test = scores["y_test"][largest_da]
+    largest_r_squared = np.argmax(scores["r_squared"])
+    y_pred = scores["y_pred"][largest_r_squared]
+    y_test = scores["y_test"][largest_r_squared]
     plot_predictions(y_test.flatten(), y_pred)
     if model_type != ModelType.ARIMA:
-        plot_history(histories[largest_da])
+        plot_history(histories[largest_r_squared])
     save_dict_to_json(scores, filename)
     print(f"succesfully saved training's output to {filename}")
     print(f"mean MSE: {np.mean(scores['mse'])}")
