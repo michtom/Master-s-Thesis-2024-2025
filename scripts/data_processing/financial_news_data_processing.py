@@ -55,6 +55,7 @@ def load_news_data(folder: str) -> pd.DataFrame:
     duplicate_columns = df.drop(columns=['article_id']).columns
     df = df.drop_duplicates(subset=duplicate_columns)
     df['publishDate'] = pd.to_datetime(df['publishDate'], format='mixed')
+    df = df.sort_values('publishDate').reset_index()
     return df
 
 
