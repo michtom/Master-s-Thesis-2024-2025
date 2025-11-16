@@ -52,6 +52,9 @@ def load_news_data(folder: str) -> pd.DataFrame:
     df_full['text'] = df_full['text'].apply(clean_html)
     df = df_summary.merge(df_full, on='article_id')
     df = df[df['text'] != '']
+    duplicate_columns = df.drop(columns=['article_id']).columns
+    df = df.drop_duplicates(subset=duplicate_columns)
+    df['publishDate'] = pd.to_datetime(df['publishDate'], format='mixed')
     return df
 
 
