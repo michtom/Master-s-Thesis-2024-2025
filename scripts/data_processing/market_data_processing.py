@@ -6,7 +6,7 @@ DEFAULT_DATA_DIR = "../../data/market_data"
 
 def calculate_additional_features(df: pd.DataFrame,
                                   horizon: int = 1,
-                                  window_functions_horizon: int = 96) -> pd.DataFrame:
+                                  window_functions_horizon: int = 24 * 12) -> pd.DataFrame:
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
     df = df.sort_values('timestamp').set_index('timestamp')
 
@@ -17,12 +17,12 @@ def calculate_additional_features(df: pd.DataFrame,
     df['s_t'] = df['log_return_t-1'].rolling(window_functions_horizon, min_periods=window_functions_horizon).std()
     df['z_H'] = df['log_return_t-h'] / ((df['s_t'] + 1e-12) * np.sqrt(horizon))
 
-    ema_30 = df['price'].ewm(span=8, adjust=False).mean()
-    ema_4h = df['price'].ewm(span=16, adjust=False).mean()
+    ema_30 = df['price'].ewm(span=2*12, adjust=False).mean()
+    ema_4h = df['price'].ewm(span=4*12, adjust=False).mean()
     df['price_over_ema4h'] = df['price'] / ema_4h - 1.0
     df['price_over_ema2h'] = df['price'] / ema_30 - 1.0
 
-    df['volatility_4h'] = df['log_return_t-1'].rolling(16, min_periods=16).std()
+    df['volatility_4h'] = df['log_return_t-1'].rolling(4*12, min_periods=4*12).std()
     df['volatility_wh'] = df['log_return_t-1'].rolling(window_functions_horizon,
                                                        min_periods=window_functions_horizon).std()
 
@@ -49,7 +49,7 @@ def prepare_market_data_for_model(
     data_dir: str = DEFAULT_DATA_DIR,
     selected_features: list[str] | None = None,
     horizon: int = 1,
-    window_functions_horizon: int = 96
+    window_functions_horizon: int = 24 * 12
 ) -> tuple[pd.DataFrame, pd.Series]:
 
     df = pd.read_csv(f"{data_dir}/{filename}")
