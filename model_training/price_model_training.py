@@ -78,7 +78,7 @@ def create_dummy(seq_length=6, num_neurons=512, dropout_rate=0.3) -> tf.keras.Mo
     pass
 
 
-def build_sequences(X_df, y_array, seq_len):
+def build_sequences(X_df, y_array, seq_len) -> tuple[np.ndarray, np.ndarray]:
     X_np = X_df.values.astype(np.float32)
     y_np = y_array.values.astype(np.float32).reshape(-1, 1)
 
@@ -90,7 +90,7 @@ def build_sequences(X_df, y_array, seq_len):
 
     return X_seq, y_cut
 
-def make_json_serializable(obj):
+def make_json_serializable(obj) -> Any:
     if isinstance(obj, dict):
         return {k: make_json_serializable(v) for k, v in obj.items()}
     elif isinstance(obj, list):
@@ -102,7 +102,7 @@ def make_json_serializable(obj):
     else:
         return obj
 
-def save_dict_to_json(data_dict, filename):
+def save_dict_to_json(data_dict, filename) -> None:
   data = make_json_serializable(data_dict)
   with open(f"{filename}.json", "w") as f:
     json.dump(data, f, indent=4)

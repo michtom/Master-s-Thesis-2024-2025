@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 
 
-def plot_predictions(y, y_pred):
+def plot_predictions(y, y_pred) -> None:
   plt.figure(figsize=(12, 5))
   sns.scatterplot(x=y, y=y_pred)
   plt.xlabel('Actual price return')
@@ -11,7 +11,7 @@ def plot_predictions(y, y_pred):
   plt.show()
 
 
-def plot_history(hist):
+def plot_history(hist) -> None:
   fig = plt.figure(figsize=(12, 5))
 
   ax = fig.add_subplot(122)
