@@ -136,6 +136,32 @@ class MLMUnlabeledDataTrainer:
         trainer.train()
         self.final_model.save_pretrained(self.final_checkpoint)
 
+    def train_final_model_labeled_data(self, dataset: Dataset) -> None:
+        try:
+            self.init_final_model(self.mlm_checkpoint)
+        except Exception as e:
+            self.logger.error(e)
+            return
+        tokenized_dataset = dataset.map(self.tokenize, batched=True)
+        training_args = TrainingArguments(
+            output_dir="./finbert-sentiment-pseudo",
+            num_train_epochs=self.epochs_num,
+            per_device_train_batch_size=16,
+            eval_strategy="no",
+            report_to="none",
+            logging_steps=10,
+            save_strategy="epoch",
+            save_total_limit=2,
+            load_best_model_at_end=False,
+        )
+        trainer = Trainer(
+            model = self.final_model,
+            args=training_args,
+            train_dataset=tokenized_dataset
+        )
+        trainer.train()
+        self.final_model.save_pretrained(self.final_checkpoint)
+
     def predict_sentiment(self, text: str, device: str, max_length: int=128):
         self.final_model.to(device)
         self.final_model.eval()
