@@ -65,10 +65,10 @@ def prepare_market_data_for_model(
     return X, y
 
 
-label2id = {"negative": 0, "neutral": 1, "positive": 2}
+label2id = {"negative": -1, "neutral": 0, "positive": 1}
+# so that no sentiment is treated as neutral sentiment (different than classes in BERT)
 
-
-def add_sentiment_features(
+def add_sentiment_features_from_articles(
         df: pd.DataFrame,
         news: pd.DataFrame,
         windows_hours=(2, 6, 24),
