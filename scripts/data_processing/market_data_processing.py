@@ -8,6 +8,7 @@ def calculate_additional_features(df: pd.DataFrame,
                                   horizon: int = 1,
                                   window_functions_horizon: int = 24 * 12) -> pd.DataFrame:
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df['timestamp'] = df['timestamp'].dt.tz_localize('UTC')
     df = df.sort_values('timestamp').set_index('timestamp')
 
     df['price_t-1'] = df['price'].shift(1)
@@ -64,11 +65,42 @@ def prepare_market_data_for_model(
     return X, y
 
 
+label2id = {"negative": 0, "neutral": 1, "positive": 2}
+
+
+def add_sentiment_features(
+        df: pd.DataFrame,
+        news: pd.DataFrame,
+        windows_hours=(2, 6, 24),
+) -> pd.DataFrame:
+    news = news.copy()
+    df = df.copy()
+    news['publishDate'] = pd.to_datetime(news['publishDate'], format="mixed")
+    news = news.sort_values('publishDate').set_index('publishDate')
+    news["labels"] = news["label"].apply(lambda x: label2id.get(x, 1))
+    news = news["labels"].resample("15min").mean()
+    news = news.reindex(df.index).fillna(0.0)
+
+    minutes_per_bar = pd.to_timedelta("15min").seconds / 60
+
+    for t in windows_hours:
+        hl = t / 2
+        hl_bars = hl * 60 / minutes_per_bar
+        col_name = f"sentiment_ewm_{t}h"
+        df[col_name] = news.ewm(halflife=hl_bars, adjust=False).mean()
+
+    return df
+
+
 
 def _test() -> None:
+    df = pd.read_csv("/Users/mtomczyk/Downloads/articles_labeled.csv")
     X, y = prepare_market_data_for_model('btc_merged.csv')
-    print(X.head().to_string())
-    print(y.head().to_string())
+    result = add_sentiment_features(X, df)
+    result = result[result['sentiment_ewm_24h'] > 0]
+    print(result.head(25).to_string())
+    #print(X.head().to_string())
+    #print(y.head().to_string())
 
 
 if __name__ == "__main__":
