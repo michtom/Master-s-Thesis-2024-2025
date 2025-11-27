@@ -77,28 +77,40 @@ def add_sentiment_features_from_articles(
     df = df.copy()
     news['publishDate'] = pd.to_datetime(news['publishDate'], format="mixed")
     news = news.sort_values('publishDate').set_index('publishDate')
-    news["labels"] = news["label"].apply(lambda x: label2id.get(x, 1))
-    news = news["labels"].resample("15min").mean()
-    news = news.reindex(df.index).fillna(0.0)
+    news["labels"] = news["label"].apply(lambda x: label2id.get(x, 0))
+    news_mean = news["labels"].resample("5min").mean()
+    news_count = news["label"].resample("5min").count()
+    news_count = news_count.reindex(df.index).fillna(0.0)
+    df["news_count"] = news_count
 
-    minutes_per_bar = pd.to_timedelta("15min").seconds / 60
+    news_mean = news_mean.reindex(df.index).fillna(0.0).shift(1)
+
+    minutes_per_bar = pd.to_timedelta("5min").seconds / 60
 
     for t in windows_hours:
         hl = t / 2
         hl_bars = hl * 60 / minutes_per_bar
         col_name = f"sentiment_ewm_{t}h"
-        df[col_name] = news.ewm(halflife=hl_bars, adjust=False).mean()
-
-    return df
+        df[col_name] = news_mean.ewm(halflife=hl_bars, adjust=False).mean().shift(1)
+    return df.dropna()
 
 
 
 def _test() -> None:
     df = pd.read_csv("/Users/mtomczyk/Downloads/articles_labeled.csv")
-    X, y = prepare_market_data_for_model('btc_merged.csv')
-    result = add_sentiment_features(X, df)
-    result = result[result['sentiment_ewm_24h'] > 0]
+    X, y = prepare_market_data_for_model('btc_merged.csv', horizon=4*12)
+    print(X.head().to_string())
+    print(y.head().to_string())
+    windows_hours = (4, 6, 8, 10, 12, 2)
+    result = add_sentiment_features_from_articles(X, df, windows_hours=windows_hours)
+    #result = result[result['sentiment_ewm_36h'] > 0]
     print(result.head(25).to_string())
+    cols = [f"sentiment_ewm_{i}h" for i in windows_hours]
+    print(result[cols].corrwith(y))
+    for h in []:  # steps ahead (5min * h)
+        y_h = y # or however you define your label
+        print(f"\nHorizon: {h} steps:")
+        print(result[cols].iloc[:-h].corrwith(y_h.iloc[:-h]))
     #print(X.head().to_string())
     #print(y.head().to_string())
 
