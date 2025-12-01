@@ -24,42 +24,41 @@ class LossFunction(Enum):
     EXPECTILE_VAR = auto()
 
 
-def create_lstm(num_features, seq_length=6, num_neurons=512, dropout_rate=0.3) -> tf.keras.Model:
-    model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=(seq_length, num_features)),
-        tf.keras.layers.LSTM(num_neurons, activation='tanh',
-                             return_sequences=True, dropout=dropout_rate,
-                             kernel_regularizer=tf.keras.regularizers.l2(1e-4),
-                             ),
-        tf.keras.layers.LayerNormalization(),
-        tf.keras.layers.LSTM(num_neurons, activation='tanh',
-                             dropout=dropout_rate,
-                             kernel_regularizer=tf.keras.regularizers.l2(1e-4),
-                             ),
-        tf.keras.layers.LayerNormalization(),
-        tf.keras.layers.Dense(64, activation="elu"),
+def create_lstm(num_features, seq_length=6, num_neurons=64, dropout_rate=0.3,
+                num_layers: int = 2) -> tf.keras.Model:
+    layers = [tf.keras.layers.Input(shape=(seq_length, num_features))]
+    for i in range(num_layers):
+        if i == num_layers - 1:
+            layers.append(tf.keras.layers.LSTM(num_neurons, activation='tanh', dropout=dropout_rate,
+                                               kernel_regularizer=tf.keras.regularizers.l2(1e-4), ))
+        else:
+            layers.append(tf.keras.layers.LSTM(num_neurons, activation='tanh', dropout=dropout_rate,
+                                               kernel_regularizer=tf.keras.regularizers.l2(1e-4),
+                                               return_sequences=True))
+        layers.append(tf.keras.layers.LayerNormalization())
+    layers.extend([tf.keras.layers.Dense(64, activation="elu"),
         tf.keras.layers.Dropout(0.1),
-        tf.keras.layers.Dense(1, activation=None)
-    ])
+        tf.keras.layers.Dense(1, activation=None)])
+    model = tf.keras.Sequential(layers)
     return model
 
 
-def create_gru(num_features, seq_length=6, num_neurons=512, dropout_rate=0.3) -> tf.keras.Model:
-    model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=(seq_length, num_features)),
-        tf.keras.layers.GRU(num_neurons, activation='tanh',
-                            return_sequences=True, dropout=dropout_rate,
-                            kernel_regularizer=tf.keras.regularizers.l2(1e-4),
-                            ),
-        tf.keras.layers.LayerNormalization(),
-        tf.keras.layers.GRU(num_neurons, activation='tanh',
-                            dropout=dropout_rate,
-                            kernel_regularizer=tf.keras.regularizers.l2(1e-4), ),
-        tf.keras.layers.LayerNormalization(),
-        tf.keras.layers.Dense(64, activation="elu"),
-        tf.keras.layers.Dropout(0.1),
-        tf.keras.layers.Dense(1, activation=None)
-    ])
+def create_gru(num_features, seq_length=6, num_neurons=512, dropout_rate=0.3,
+               num_layers: int = 2) -> tf.keras.Model:
+    layers = [tf.keras.layers.Input(shape=(seq_length, num_features))]
+    for i in range(num_layers):
+        if i == num_layers - 1:
+            layers.append(tf.keras.layers.GRU(num_neurons, activation='tanh', dropout=dropout_rate,
+                                              kernel_regularizer=tf.keras.regularizers.l2(1e-4), ))
+        else:
+            layers.append(tf.keras.layers.GRU(num_neurons, activation='tanh', dropout=dropout_rate,
+                                              kernel_regularizer=tf.keras.regularizers.l2(1e-4),
+                                              return_sequences=True))
+        layers.append(tf.keras.layers.LayerNormalization())
+    layers.extend([tf.keras.layers.Dense(64, activation="elu"),
+                   tf.keras.layers.Dropout(0.1),
+                   tf.keras.layers.Dense(1, activation=None)])
+    model = tf.keras.Sequential(layers)
     return model
 
 
@@ -115,7 +114,7 @@ def train_price_prediction_model(
         dropout: float = 0.15, learning_rate: float = 1e-3,
         seq_length: int = 48, num_neurons: int = 256, batch_size: int = 128,
         loss_funtion: LossFunction = LossFunction.EXPECTILE_VAR,
-        epochs: int = 100
+        epochs: int = 100, num_layers: int = 2,
 ) -> tuple[dict, list[tf.keras.callbacks.History]]:
     np.random.seed(120)
     random.seed(120)
@@ -136,6 +135,10 @@ def train_price_prediction_model(
         X_train, X_test = X.iloc[train_index], X.iloc[test_index]
         y_train_raw, y_test_raw = y.iloc[train_index].values.reshape(-1, 1), y.iloc[test_index].values.reshape(-1, 1)
 
+        x_scaler = StandardScaler().fit(X_train.values)
+        X_train[:] = x_scaler.transform(X_train.values)
+        X_test[:] = x_scaler.transform(X_test.values)
+
         X_train_seq, y_train_seq_raw = build_sequences(X_train, pd.Series(y_train_raw.ravel(), index=X_train.index),
                                                        seq_length)
         X_test_seq, y_test_seq_raw = build_sequences(X_test, pd.Series(y_test_raw.ravel(), index=X_test.index),
@@ -148,11 +151,13 @@ def train_price_prediction_model(
         if model_type == ModelType.LSTM:
             model = create_lstm(num_features=X_train_seq.shape[2],
                                 seq_length=seq_length,
-                                num_neurons=num_neurons, dropout_rate=dropout)
+                                num_neurons=num_neurons, dropout_rate=dropout,
+                                num_layers=num_layers)
         elif model_type == ModelType.GRU:
             model = create_gru(num_features=X_train_seq.shape[2],
                                seq_length=seq_length,
-                               num_neurons=num_neurons, dropout_rate=dropout)
+                               num_neurons=num_neurons, dropout_rate=dropout,
+                               num_layers=num_layers)
         elif model_type == ModelType.ARIMA:
             model = create_arima(endog=y_train_raw.ravel(), exog=X_train, order=(2, 1, 2))
             results = model.fit(disp=False)
