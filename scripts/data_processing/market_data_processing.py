@@ -81,39 +81,55 @@ def add_sentiment_features_from_articles(
     news_mean = news["labels"].resample("5min").mean()
     news_count = news["label"].resample("5min").count()
     news_count = news_count.reindex(df.index).fillna(0.0)
-    df["news_count"] = news_count
+    df['news_any'] = (news_count > 0).astype(float).shift(1)
 
-    news_mean = news_mean.reindex(df.index).fillna(0.0).shift(1)
+    news_mean = news_mean.reindex(df.index).fillna(0.0)
 
-    minutes_per_bar = pd.to_timedelta("5min").seconds / 60
+    minutes_per_bar = 5
 
     for t in windows_hours:
-        hl = t / 2
-        hl_bars = hl * 60 / minutes_per_bar
-        col_name = f"sentiment_ewm_{t}h"
-        df[col_name] = news_mean.ewm(halflife=hl_bars, adjust=False).mean().shift(1)
+        bars = int(t * 60 / minutes_per_bar)
+        df[f'sentiment_mean_{t}h'] = news_mean.rolling(bars, min_periods=1).mean().shift(1)
+        count_rolling = news_count.rolling(bars, min_periods=1).sum()
+        df[f'news_count_{t}h'] = count_rolling.shift(1)
+        df[f'has_news_{t}h'] = (count_rolling > 0).astype(float).shift(1)
     return df.dropna()
 
+
+def add_sentiments_from_reddit(df: pd.DataFrame, comments:pd.DataFrame,
+                               windows_hours=(2, 6, 24)) -> pd.DataFrame:
+    comments = comments.copy()
+    df = df.copy()
+    comments["created_utc"] = pd.to_datetime(comments["created_utc"])
+    comments["created_utc"] = comments["created_utc"].dt.tz_localize("UTC")
+    comments = comments.sort_values("created_utc").set_index("created_utc")
+    comments["labels"] = comments["label"].apply(lambda x: label2id.get(x, 0))
+    sentiment = comments["labels"].resample("5min").mean().reindex(df.index).fillna(0.0)
+    count = comments["labels"].resample("5min").count().reindex(df.index).fillna(0.0)
+
+    df["has_comment"] = (count > 0).astype(float).shift(1)
+    df["comment_count"] = np.log1p(count).shift(1)
+    minutes = 5
+    for t in windows_hours:
+        bars = int((5 * 60) / minutes)
+        sentiment_rolling = sentiment.rolling(bars, min_periods=1).mean()
+        counts_rolling = count.rolling(bars, min_periods=1).mean()
+
+        df[f"reddit_sentiment_{t}h"] = sentiment_rolling.shift(1)
+        df[f"reddit_counts_{t}h"] = counts_rolling.shift(1)
+    return df.dropna()
 
 
 def _test() -> None:
     df = pd.read_csv("/Users/mtomczyk/Downloads/articles_labeled.csv")
     X, y = prepare_market_data_for_model('btc_merged.csv', horizon=4*12)
-    print(X.head().to_string())
-    print(y.head().to_string())
-    windows_hours = (4, 6, 8, 10, 12, 2)
+    windows_hours = (2, 6, 12, 42)
     result = add_sentiment_features_from_articles(X, df, windows_hours=windows_hours)
-    #result = result[result['sentiment_ewm_36h'] > 0]
+    print(result.head(30).to_string())
+    comments = pd.read_csv("/Users/mtomczyk/Downloads/comments_labeled_non_finetuned.csv")
+    print(comments.shape)
+    result = add_sentiments_from_reddit(result, comments=comments)
     print(result.head(25).to_string())
-    cols = [f"sentiment_ewm_{i}h" for i in windows_hours]
-    print(result[cols].corrwith(y))
-    for h in []:  # steps ahead (5min * h)
-        y_h = y # or however you define your label
-        print(f"\nHorizon: {h} steps:")
-        print(result[cols].iloc[:-h].corrwith(y_h.iloc[:-h]))
-    #print(X.head().to_string())
-    #print(y.head().to_string())
-
 
 if __name__ == "__main__":
     _test()
