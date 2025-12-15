@@ -1,6 +1,7 @@
 import random
 from enum import Enum, auto
 import json
+import shap
 
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.model_selection import TimeSeriesSplit
@@ -118,6 +119,9 @@ def train_price_prediction_model(
         seq_length: int = 48, num_neurons: int = 256, batch_size: int = 128,
         loss_funtion: LossFunction = LossFunction.EXPECTILE_VAR,
         epochs: int = 100, num_layers: int = 2,
+        plot_shap_values: bool = False,
+        order: tuple[int, int, int] = (2, 1, 2),
+        seasonal_order: tuple[int, int, int, int] = (0, 0, 0, 0),
 ) -> tuple[dict, list[tf.keras.callbacks.History]]:
     np.random.seed(120)
     random.seed(120)
@@ -173,7 +177,8 @@ def train_price_prediction_model(
             model = create_arima(
                 endog=y_train_raw.ravel(),
                 exog=X_train_scaled_df,
-                order=(2, 1, 2)
+                order=order,
+                seasonal_order=seasonal_order,
             )
             results = model.fit(disp=False)
 
@@ -291,13 +296,11 @@ def train_price_prediction_model(
 
     final_history = None
     if X_test_final is not None and y_test_final is not None:
-        # Train once on FULL trainval block and evaluate on final test
         X_tr = X_trainval.copy()
         y_tr = y_trainval.copy().values.reshape(-1, 1)
         X_te = X_test_final.copy()
         y_te_raw = y_test_final.copy().values.reshape(-1, 1)
 
-        # feature scaler from all training+val
         x_scaler_final = StandardScaler().fit(X_tr.values)
         X_tr_scaled = x_scaler_final.transform(X_tr.values)
         X_te_scaled = x_scaler_final.transform(X_te.values)
@@ -317,7 +320,8 @@ def train_price_prediction_model(
             model_final = create_arima(
                 endog=y_tr.ravel(),
                 exog=X_tr_scaled_df,
-                order=(2, 1, 2)
+                order=order,
+                seasonal_order=seasonal_order,
             )
             results_final = model_final.fit(disp=False)
 
@@ -347,7 +351,6 @@ def train_price_prediction_model(
             y_tr_scaled = y_scaler_final.transform(y_tr_seq_raw).astype(np.float32)
             y_te_scaled = y_scaler_final.transform(y_te_seq_raw).astype(np.float32)
 
-            # create model again
             if model_type == ModelType.LSTM:
                 model_final = create_lstm(
                     num_features=X_tr_seq.shape[2],
@@ -367,7 +370,6 @@ def train_price_prediction_model(
             else:
                 raise ValueError("Use LSTM/GRU here; ARIMA/DUMMY not implemented.")
 
-            # same loss as before
             match loss_funtion:
                 case LossFunction.MSE:
                     loss = "mse"
@@ -398,6 +400,24 @@ def train_price_prediction_model(
                 shuffle=False,
                 verbose=0,
             )
+            if plot_shap_values:
+                background = X_tr_seq[:200]
+                explain_data = X_te_seq[:500]
+                explainer = shap.GradientExplainer(model_final, background)
+                shap_values = explainer.shap_values(explain_data)
+                if isinstance(shap_values, list):
+                    shap_values = shap_values[0]
+                shap_values = np.squeeze(shap_values, axis=-1)
+                shap_values_feat = shap_values.mean(axis=1)
+                X_feat = explain_data.mean(axis=1)
+                X_feat_df = pd.DataFrame(X_feat, columns=X.columns)
+                shap.summary_plot(
+                    shap_values_feat,
+                    X_feat_df,
+                    feature_names=X.columns.tolist(),
+                    show=True
+                )
+                plt.show()
 
             y_pred_test_std = model_final.predict(X_te_seq, verbose=0).reshape(-1, 1)
             y_pred_test_raw = y_scaler_final.inverse_transform(y_pred_test_std).ravel()
@@ -419,6 +439,7 @@ def train_price_prediction_model(
             f"corr: {scores_test['test_corr']:.3f}"
         )
         plot_predictions(y_test_raw_flat, y_pred_test_raw)
+        plot_predictions_over_time(y_test_raw_flat, y_pred_test_raw)
         if model_type != ModelType.ARIMA and final_history is not None:
             plot_history(final_history)
 
@@ -430,7 +451,6 @@ def train_price_prediction_model(
     print(f"mean CV R^2: {np.mean(scores['cv_r_squared'])}")
     print(f"mean CV Pearson correlation: {np.mean(scores['cv_corr'])}")
 
-    # Add test scores to scores dict if present
     scores.update(scores_test)
     if scores_test and X_test_final is not None:
         plot_predictions(y_test_raw_flat, y_pred_test_raw)
